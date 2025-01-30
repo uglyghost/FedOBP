@@ -26,11 +26,11 @@ class FedDpaServer(FedAvgServer):
         # Initialize trainer with FedDpaClient
         self.init_trainer(FedDpaClient)
 
-        # 获取父目录
+        # Get the parent directory
         parent_dir = self.output_dir.parent
-        start = str(self.dataset).find('.') + 1  # 找到第一个 '.' 的位置
-        end = str(self.dataset).find('object')  # 找到 ' object' 的位置
-        dataset_name = str(self.dataset)[start:end].split('.')[-1].lower()  # 提取最后一部分
+        start = str(self.dataset).find('.') + 1  # Find the position of the first '.'
+        end = str(self.dataset).find('object')  # Find the position of ' object'
+        dataset_name = str(self.dataset)[start:end].split('.')[-1].lower()  # Extract the last part
         self.output_dir = parent_dir / Path(dataset_name + '_' + str(self.args.feddpa.fisher_threshold))
 
         if not os.path.isdir(self.output_dir) and (

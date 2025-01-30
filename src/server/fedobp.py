@@ -58,7 +58,7 @@ class FedOBPServer(FedAvgServer):
 
         cls_name = f"CLS" if self.args.fedobp.CLS else "ALL"
 
-        # 直接组合成完整输出目录
+        # Directly combine into a complete output directory
         self.output_dir = (
                 Path("./out")
                 / self.args.method
@@ -87,7 +87,7 @@ class FedOBPServer(FedAvgServer):
         ) as f:
             self.args.dataset.update(DictConfig(json.load(f)))
 
-        # get client party info
+        # Get client party info
         try:
             partition_path = (
                     FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
@@ -101,11 +101,8 @@ class FedOBPServer(FedAvgServer):
         self.val_clients: List[int] = self.data_partition["separation"]["val"]
         self.client_num: int = self.data_partition["separation"]["total"]
 
-        # init model(s) parameters
-        self.model: DecoupledModel = MODELS[self.args.model.name](
-            dataset=self.args.dataset.name,
-            pretrained=self.args.model.use_torchvision_pretrained_weights,
-        )
+        # Initialize model(s) parameters
+        self.model: DecoupledModel = MODELS[self.args.model.name](dataset=self.args.dataset.name,pretrained=self.args.model.use_torchvision_pretrained_weights,)
         self.model.check_and_preprocess(self.args)
 
         _init_global_params, _init_global_params_name = [], []
@@ -150,7 +147,7 @@ class FedOBPServer(FedAvgServer):
                                                    self.args.common.local_epoch
                                                ] * self.client_num
 
-        # system heterogeneity (straggler) setting
+        # System heterogeneity (straggler) setting
         if (
                 self.args.common.straggler_ratio > 0
                 and self.args.common.local_epoch
@@ -169,9 +166,9 @@ class FedOBPServer(FedAvgServer):
             )
             random.shuffle(self.client_local_epoches)
 
-        # To make sure all algorithms run through the same client sampling stream.
-        # Some algorithms' implicit operations at client side may
-        # disturb the stream if sampling happens at each FL round's beginning.
+        # To ensure all algorithms run through the same client sampling stream.
+        # Some algorithms' implicit operations at the client side may
+        # disturb the stream if sampling happens at the beginning of each FL round.
         self.client_sample_stream = [
             random.sample(
                 self.train_clients,
@@ -214,14 +211,14 @@ class FedOBPServer(FedAvgServer):
 
             self.tensorboard = SummaryWriter(log_dir=self.output_dir)
 
-        # init trainer
+        # Initialize trainer
         self.trainer: FLbenchTrainer = None
         self.dataset = self.get_dataset()
         self.client_data_indices = self.get_clients_data_indices()
         # Initialize trainer with FedDpaClient
         self.init_trainer(FedOBPClient)
 
-        # create setup for centralized evaluation
+        # Create setup for centralized evaluation
         (
             self.trainloader,
             self.testloader,

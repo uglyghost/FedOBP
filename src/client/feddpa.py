@@ -47,14 +47,12 @@ class FedDpaClient(FedAvgClient):
 
         global_regular_params = deepcopy(package.get("regular_model_params", {}))
 
-        # 划分参数为 u 和 v（本地模型）
+        # Split parameters into u and v (local model)
         u_loc, v_loc = [], []
         tmp_model = deepcopy(self.model)
-        tmp_model.load_state_dict(self.postrain_state_dict[self.client_id])  # 加载状态字典
+        tmp_model.load_state_dict(self.postrain_state_dict[self.client_id])  # Load state dictionary
 
         fisher_diag = self.compute_fisher_diag(self.trainloader)
-        # fisher_flattened = torch.cat([tensor.view(-1) for tensor in fisher_diag])  # 拼接成一维张量
-        # fisher_threshold = torch.quantile(fisher_flattened, self.fisher_threshold)
 
         # Split parameters into u and v (local model)
         u_loc, v_loc = [], []
@@ -67,7 +65,7 @@ class FedDpaClient(FedAvgClient):
             u_loc.append(u_param)
             v_loc.append(v_param)
 
-            # Split parameters into u and v (global model)
+        # Split parameters into u and v (global model)
         u_glob, v_glob = [], []
         for global_param, fisher_value in zip(global_regular_params.values(), fisher_diag):
             global_param = global_param.to(self.device)
@@ -78,7 +76,7 @@ class FedDpaClient(FedAvgClient):
             u_glob.append(u_param)
             v_glob.append(v_param)
 
-        # 更新本地模型参数
+        # Update local model parameters
         for u_param, v_param, model_param in zip(u_loc, v_glob, tmp_model.parameters()):
             model_param.data = u_param + v_param
 
@@ -121,7 +119,6 @@ class FedDpaClient(FedAvgClient):
 
         Args:
         - dataloader (DataLoader): Dataloader containing the dataset.
-        - subset_size (int): Number of samples to randomly select from the dataloader.
 
         Returns:
         - Fisher diagonal (normalized) for the model.
@@ -150,10 +147,10 @@ class FedDpaClient(FedAvgClient):
                 for fisher_diag_value, grad_value in zip(fisher_diag, grad1):
                     fisher_diag_value.add_(grad_value.detach() ** 2)
 
-                    # Free up memory by removing computation graph
+                # Free up memory by removing computation graph
                 del log_prob, grad1
 
-                # Calculate the mean value
+        # Calculate the mean value
         num_samples = min(len(dataloader), 10)  # Ensure num_samples does not exceed 10
         fisher_diag = [fisher_diag_value / num_samples for fisher_diag_value in fisher_diag]
 
@@ -168,22 +165,22 @@ class FedDpaClient(FedAvgClient):
         return normalized_fisher_diag
 
     def compute_ig_norm(self, global_regular_params, client_regular_params, device):
-        Ig_norm = []  # 存储标准化后的 IG 值
+        Ig_norm = []  # Store normalized IG values
 
         for global_param, client_param in zip(global_regular_params.values(), client_regular_params.parameters()):
             client_param = client_param.to(device)
             global_param = global_param.to(device)
             # Compute IG: |(client_param - global_param) * client_param|
             ig_value = torch.abs((client_param - global_param) * client_param)
-            # Min-Max 标准化
+            # Min-Max normalization
             min_val = torch.min(ig_value)
             max_val = torch.max(ig_value)
             if max_val == min_val:
-                # 如果 max == min，返回全零张量
+                # If max == min, return a zero tensor
                 normalized_ig = torch.zeros_like(ig_value)
             else:
                 normalized_ig = (ig_value - min_val) / (max_val - min_val)
 
-            Ig_norm.append(normalized_ig)  # 将标准化结果添加到列表中
+            Ig_norm.append(normalized_ig)  # Add the normalized result to the list
 
         return Ig_norm

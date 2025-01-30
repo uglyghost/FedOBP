@@ -59,7 +59,7 @@ class FedOBPClient(FedAvgClient):
         self.current_epoch = package["current_epoch"]
         self.load_data_indices()  # Load data indices for local training
 
-        ##### 1. 直接设定Ig_ratio
+        ##### 1. Directly set Ig_ratio
         self.ig_ratio = self.args.fedobp.ig_ratio
 
         # Load optimizer state
@@ -86,31 +86,31 @@ class FedOBPClient(FedAvgClient):
             current_ig = torch.abs((client_param - global_param) * client_param)
 
             if self.client_id not in self.Ig_ema:
-                self.Ig_ema[self.client_id] = {}  # 初始化该客户端的字典
+                self.Ig_ema[self.client_id] = {}  # Initialize the client's dictionary
 
-            # 判断是否采用 EMA 方法
+            # Check if using EMA method
             if self.args.fedobp.EMA:
                 if name not in self.Ig_ema[self.client_id]:
-                    self.Ig_ema[self.client_id][name] = current_ig.clone()  # 初始化 EMA 值
+                    self.Ig_ema[self.client_id][name] = current_ig.clone()  # Initialize EMA value
                 else:
                     self.Ig_ema[self.client_id][name] = (1 - self.alpha) * current_ig + self.alpha * self.Ig_ema[self.client_id][name]
             else:
                 self.Ig_ema[self.client_id][name] = current_ig.clone()
 
-            # 1. 判断是否LayerNorm
+            # 1. Check if LayerNorm
             if self.args.fedobp.norm == 'layer':
                 Ig_norm[name] = ((self.Ig_ema[self.client_id][name] - torch.min(self.Ig_ema[self.client_id][name]))
                                  / (torch.max(self.Ig_ema[self.client_id][name]) - torch.min(self.Ig_ema[self.client_id][name])))
             else:
                 Ig_norm[name] = self.Ig_ema[self.client_id][name]
 
-        # 2. 判断是否GlobalNorm
+        # 2. Check if GlobalNorm
         if self.args.fedobp.norm == 'global':
             current_ig_ema = self._concat_parameters(self.Ig_ema[self.client_id])
             for name, value in self.Ig_ema[self.client_id].items():
                 Ig_norm[name] = (value - current_ig_ema.min()) / (current_ig_ema.max() - current_ig_ema.min())
 
-        # 计算分位数 Threshold
+        # Calculate quantile Threshold
         Ig_threshold = torch.quantile(self._concat_parameters(Ig_norm), self.ig_ratio)
 
         new_state_dict = self._update_parameters(
